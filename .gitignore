@@ -1,0 +1,20 @@
+__pycache__
+*.pyc
+
+# Local environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite databases
+*.sqlite
+*.db
+
+# Caches
+.pytest_cache/
+.coverage
+htmlcov/
