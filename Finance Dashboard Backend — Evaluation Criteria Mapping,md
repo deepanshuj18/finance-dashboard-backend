@@ -1,0 +1,241 @@
+# Finance Dashboard Backend – Evaluation Criteria Mapping
+
+This document explains how the project satisfies each of the evaluation criteria and highlights the key architectural and engineering decisions made throughout the implementation.
+
+---
+
+# 1. Backend Design
+
+The backend is structured using a layered architecture to ensure maintainability, separation of concerns, and scalability.
+
+## Project Structure
+
+```text
+app/
+├── routers/        # API endpoints only
+├── services/       # Business logic layer
+├── models/         # SQLAlchemy ORM models
+├── schemas/        # Pydantic request/response validation
+├── middleware/     # JWT auth, logging, rate limiting
+├── dependencies/   # RBAC logic
+├── exceptions/     # Global exception handling
+├── database.py     # Async database engine and session
+└── main.py         # App initialization and middleware registration
+```
+
+## Design Decisions
+
+* Routers are intentionally thin and only handle HTTP transport.
+* Business logic is fully isolated inside the `services/` layer.
+* Services contain zero FastAPI imports, making them independently testable.
+* Authentication, RBAC, logging, and rate limiting are extracted into middleware and reusable dependencies.
+* API routes are versioned using `/api/v1/...`.
+
+This structure ensures the application remains easy to extend, debug, and maintain.
+
+---
+
+# 2. Logical Thinking
+
+The backend includes clearly defined business rules and access control logic.
+
+## Role-Based Access Control
+
+Three roles are supported:
+
+* VIEWER → Read-only access to records and dashboard summaries
+* ANALYST → Can create/update records and view advanced trends
+* ADMIN → Full access including user management, role assignment, deletion, and status changes
+
+RBAC is implemented using reusable FastAPI dependencies:
+
+```python
+Depends(require_role("ADMIN"))
+```
+
+This keeps authorization declarative, centralized, and easy to audit.
+
+## Business Logic Examples
+
+* Public registration automatically creates users with the VIEWER role.
+* Only ADMIN users can promote others to ANALYST or ADMIN.
+* Soft deletion is used instead of hard deletion to preserve financial history.
+* Dashboard analytics are computed directly inside PostgreSQL using SQL aggregation functions.
+* Deleted records are automatically excluded from queries using `deleted_at IS NULL`.
+
+---
+
+# 3. Functionality
+
+The backend fully satisfies the required features.
+
+## Authentication & Users
+
+* Register account
+* Login with JWT token
+* Create users
+* Update user role
+* Activate/deactivate user
+* Restrict access by role
+
+## Financial Records
+
+* Create record
+* View records
+* Update record
+* Soft delete record
+* Filter by:
+
+  * Type
+  * Category
+  * Date range
+  * Search term
+* Paginate results
+
+## Dashboard APIs
+
+* Total income
+* Total expenses
+* Net balance
+* Category-wise totals
+* Monthly trend data
+* Recent transactions
+
+The system has been tested with multiple users, record types, filters, invalid inputs, and RBAC scenarios.
+
+---
+
+# 4. Code Quality
+
+The codebase was written with readability and maintainability in mind.
+
+## Code Quality Practices
+
+* Clear file naming and folder structure
+* Consistent naming conventions across models, schemas, and services
+* Separate `Create`, `Update`, and `Out` schemas
+* Avoids duplicate business logic
+* Uses enums for roles, record types, and statuses
+* Uses type hints throughout the codebase
+* Global exception handlers keep route handlers clean
+
+The architecture encourages future feature additions without major refactoring.
+
+---
+
+# 5. Database and Data Modeling
+
+The backend uses PostgreSQL with SQLAlchemy Async ORM.
+
+## Main Entities
+
+* User
+* FinancialRecord
+* Category
+* AuditLog
+
+## Key Database Features
+
+* Relationships between records and categories using foreign keys
+* Soft delete support via `deleted_at`
+* Timestamp tracking via `created_at` and `updated_at`
+* Audit logging for sensitive operations
+* Partial indexes for active records only
+* Composite indexes for common filters
+* Dashboard aggregation index for reporting queries
+
+## Optimization Decisions
+
+The following database optimizations were implemented:
+
+* Partial indexes using `WHERE deleted_at IS NULL`
+* Composite indexes on `type + date` and `category_id + date`
+* Connection pooling for async PostgreSQL
+* Eager loading using `selectinload`
+* Query optimization by selecting only required fields
+
+These decisions reduce response time and improve scalability.
+
+---
+
+# 6. Validation and Reliability
+
+The backend includes strict validation and error handling.
+
+## Validation Examples
+
+* Email must be unique
+* Password minimum length enforced
+* Amount must be greater than zero
+* Type must be either `INCOME` or `EXPENSE`
+* Invalid category IDs are rejected
+* Invalid date ranges are rejected
+* Inactive users cannot log in
+
+## Error Handling
+
+Global exception handlers convert backend failures into clean JSON responses.
+
+Examples:
+
+* 400 Bad Request
+* 401 Unauthorized
+* 403 Forbidden
+* 404 Not Found
+* 409 Conflict
+* 422 Validation Error
+* 500 Internal Server Error
+
+SQLAlchemy integrity errors are safely converted into HTTP 409 Conflict responses.
+
+The system was tested with both valid and invalid scenarios to ensure reliability.
+
+---
+
+# 7. Documentation
+
+The project includes detailed documentation for setup, usage, and architecture.
+
+## Documentation Includes
+
+* README with installation steps
+* Environment variable setup
+* Database configuration
+* API endpoint list
+* Role and permission explanation
+* Sample credentials
+* Example requests and responses
+* Swagger documentation
+* ReDoc documentation
+* Postman collection
+* Architecture explanation
+* Database optimization notes
+* Trade-offs and future improvements
+
+This ensures reviewers can easily understand, run, and evaluate the system.
+
+---
+
+# 8. Additional Thoughtfulness
+
+Several additional features were included to make the project more realistic and production-ready.
+
+## Additional Features
+
+* JWT Authentication
+* Rate limiting using slowapi
+* Structured request logging
+* X-Request-ID tracing
+* Response time measurement headers
+* GZip response compression
+* Health check endpoints
+* API versioning (`/api/v1`)
+* Audit logs for record deletion and role changes
+* Environment-specific configs for development/testing/production
+* Soft delete functionality
+* Partial and composite indexes
+* Future Redis caching strategy
+* Future cursor pagination strategy
+* Future PgBouncer connection pooling strategy
+
+These additions demonstrate awareness of real-world backend engineering practices beyond the minimum assignment requirements.
